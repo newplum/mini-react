@@ -80,11 +80,11 @@ function performWorkOfUnit(work) {
     // 创建dom
     const dom = (work.dom = createDom(work.type));
 
-    work.parent.dom.append = dom;
-
+    work.parent.dom.append(dom);
     // 更新props
     updateProps(dom, work.props);
   }
+
   // 实现链表
   initChildLink(work);
 
