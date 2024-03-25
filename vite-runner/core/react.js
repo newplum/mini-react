@@ -21,6 +21,8 @@ function createTextNode(text) {
 }
 
 let nextWorkOfUnit = null;
+
+let root = null;
 function render(el, container) {
   nextWorkOfUnit = {
     dom: container,
@@ -28,16 +30,35 @@ function render(el, container) {
       children: [el],
     },
   };
+  root = nextWorkOfUnit;
 }
 
 function workLoop(deadline) {
-  let timeRemainingGt1 = true;
-  while (timeRemainingGt1 && nextWorkOfUnit) {
+  let shouldYield = false;
+  while (!shouldYield && nextWorkOfUnit) {
     nextWorkOfUnit = performWorkOfUnit(nextWorkOfUnit);
-    timeRemainingGt1 = deadline.timeRemaining > 1;
+    shouldYield = deadline.timeRemaining() < 1;
+  }
+
+  if (!nextWorkOfUnit && root) {
+    commitRoot();
+    root = null;
   }
 
   requestIdleCallback(workLoop);
+}
+
+function commitRoot() {
+  commitWork(root.child);
+}
+
+function commitWork(work) {
+  if (!work) {
+    return;
+  }
+  work.parent.dom.append(work.dom);
+  commitWork(work.child);
+  commitWork(work.sibling);
 }
 
 function createDom(type) {
@@ -80,7 +101,6 @@ function performWorkOfUnit(work) {
     // 创建dom
     const dom = (work.dom = createDom(work.type));
 
-    work.parent.dom.append(dom);
     // 更新props
     updateProps(dom, work.props);
   }
