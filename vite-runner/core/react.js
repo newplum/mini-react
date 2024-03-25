@@ -3,9 +3,11 @@ function createElement(type, props, ...children) {
     type,
     props: {
       ...props,
-      children: children.map((child) =>
-        typeof child === "string" ? createTextNode(child) : child
-      ),
+      children: children.map((child) => {
+        const isTextNode =
+          typeof child === "string" || typeof child === "number";
+        return isTextNode ? createTextNode(child) : child;
+      }),
     },
   };
 }
@@ -52,13 +54,19 @@ function commitRoot() {
   commitWork(root.child);
 }
 
-function commitWork(work) {
-  if (!work) {
+function commitWork(fiber) {
+  if (!fiber) {
     return;
   }
-  work.parent.dom.append(work.dom);
-  commitWork(work.child);
-  commitWork(work.sibling);
+  let fiberParent = fiber.parent;
+  while (!fiberParent.dom) {
+    fiberParent = fiberParent.parent;
+  }
+  if (fiber.dom) {
+    fiberParent.dom.append(fiber.dom);
+  }
+  commitWork(fiber.child);
+  commitWork(fiber.sibling);
 }
 
 function createDom(type) {
@@ -75,50 +83,66 @@ function updateProps(dom, props) {
   }
 }
 
-function initChildLink(work) {
-  const children = work.props.children;
+function initChildLink(fiber, children) {
   let preChild = null;
   children.forEach((child, index) => {
-    const newWork = {
+    const newFiber = {
       type: child.type,
       props: child.props,
-      parent: work,
+      parent: fiber,
       child: null,
       sibling: null,
       dom: null,
     };
     if (index === 0) {
-      work.child = newWork;
+      fiber.child = newFiber;
     } else {
-      preChild.sibling = newWork;
+      preChild.sibling = newFiber;
     }
-    preChild = newWork;
+    preChild = newFiber;
   });
 }
 
-function performWorkOfUnit(work) {
-  if (!work.dom) {
-    // 创建dom
-    const dom = (work.dom = createDom(work.type));
+function updateFunctionComponent(fiber) {
+  const children = [fiber.type(fiber.props)];
+  initChildLink(fiber, children);
+}
 
-    // 更新props
-    updateProps(dom, work.props);
+function updateHostComponent(fiber) {
+  if (!fiber.dom) {
+    fiber.dom = createDom(fiber.type);
+    updateProps(fiber.dom, fiber.props);
   }
+  initChildLink(fiber, fiber.props.children);
+}
 
-  // 实现链表
-  initChildLink(work);
+function performWorkOfUnit(fiber) {
+  const isFunctionComponent = fiber.type instanceof Function;
+
+  if (isFunctionComponent) {
+    updateFunctionComponent(fiber);
+  } else {
+    updateHostComponent(fiber);
+  }
 
   // 返回下一个节点
 
-  if (work.child) {
-    return work.child;
+  if (fiber.child) {
+    return fiber.child;
   }
 
-  if (work.sibling) {
-    return work.sibling;
+  if (fiber.sibling) {
+    return fiber.sibling;
   }
 
-  return work.parent?.sibling;
+  let fiberParent = fiber.parent;
+
+  while (fiberParent) {
+    if (fiberParent.sibling) {
+      return fiberParent.sibling;
+    }
+    fiberParent = fiberParent.parent;
+  }
 }
 
 requestIdleCallback(workLoop);

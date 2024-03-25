@@ -1,21 +1,14 @@
 import React from "./core/react.js";
 
+function Count({ num }) {
+  return <div>Count {num}</div>;
+}
+
 const App = (
   <div>
     <h1>Hello World</h1>
-    <p>This is a paragraph</p>
-    <div>
-      <p>This is a paragraph</p>
-      <div>
-        <p>This is a paragraph</p>
-
-        <div>
-          <p>This is a paragraph</p>
-          <span>This is a span</span>
-          <font>This is a font</font>
-        </div>
-      </div>
-    </div>
+    <Count num={10}></Count>
+    <Count num={20}></Count>
   </div>
 );
 
